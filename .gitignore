@@ -6,3 +6,6 @@
 
 # playground
 __playground/
+
+# system
+.DS_Store
