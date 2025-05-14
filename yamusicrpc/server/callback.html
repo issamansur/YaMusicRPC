@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Авторизация Яндекс</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f4f4;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            color: #2e74d3;
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 1.1em;
+            color: #555;
+        }
+
+        .loader {
+            margin-top: 20px;
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #2e74d3;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .success {
+            font-size: 1.2em;
+            color: green;
+        }
+
+        .error {
+            font-size: 1.2em;
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<div class="container" id="content">
+    <h1>Авторизация Яндекс</h1>
+    <p>Получаем токен доступа...</p>
+    <div class="loader"></div>
+</div>
+
+<script>
+    const fragment = window.location.hash.substring(1);
+    const params = new URLSearchParams(fragment);
+    const token = params.get('access_token');
+
+    const content = document.getElementById('content');
+
+    if (token) {
+        fetch(`/token?access_token=${token}`
+        ).then(() => {
+            content.innerHTML = `
+          <h1>Успех!</h1>
+          <p class="success">Авторизация прошла успешно. Можно закрыть окно.</p>
+        `;
+        });
+    } else {
+        content.innerHTML = `
+        <h1>Ошибка</h1>
+        <p class="error">Авторизация не удалась. Обратитесь в поддержку</p>
+      `;
+    }
+</script>
+</body>
+</html>

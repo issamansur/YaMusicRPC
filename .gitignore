@@ -1,0 +1,8 @@
+# jetbrains
+.idea/
+
+# venvs
+.venv/
+
+# playground
+__playground/
