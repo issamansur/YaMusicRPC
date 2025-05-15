@@ -6,19 +6,22 @@ from yamusicrpc.server import OAuthServer, ServerThread
 
 
 class YandexTokenReceiver:
+    __oauth_server: OAuthServer
+    __server: ServerThread
+
     def __init__(self):
-        self.oauth_server = OAuthServer(LOCAL_HOST, LOCAL_PORT)
-        self.server = ServerThread(self.oauth_server.get_app(), LOCAL_HOST, LOCAL_PORT)
+        self.__oauth_server = OAuthServer(LOCAL_HOST, LOCAL_PORT)
+        self.__server = ServerThread(self.__oauth_server.get_app(), LOCAL_HOST, LOCAL_PORT)
 
     def get_token(self) -> Optional[str]:
-        self.server.start()
+        self.__server.start()
 
         print(f"[YandexTokenReceiver] Сервер запущен на {LOCAL_URI}")
 
         webbrowser.open(YANDEX_AUTH_URL)
         print("[YandexTokenReceiver] Открыт браузер для авторизации...")
 
-        self.oauth_server.token_received_event.wait(timeout=120)
-        self.server.shutdown()
+        self.__oauth_server.token_received_event.wait(timeout=120)
+        self.__server.shutdown()
         print("[YandexTokenReceiver] Сервер остановлен")
-        return self.oauth_server.access_token
+        return self.__oauth_server.access_token
