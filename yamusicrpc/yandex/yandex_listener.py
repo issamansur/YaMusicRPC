@@ -146,7 +146,7 @@ class YandexListener:
             if msg.type == aiohttp.WSMsgType.TEXT:
                 ynison_data = msg.json()
                 state: CurrentState = CurrentState.from_ynison(ynison_data)
-                print(f'[YandexListener] Received state about track: {state.track_id}')
+                print(f'[YandexListener] Received state about track: {state.track_id} (progress: {state.progress})')
                 yield state
             elif msg.type == aiohttp.WSMsgType.CLOSED:
                 break
