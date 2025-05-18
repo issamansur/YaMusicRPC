@@ -2,13 +2,12 @@ import asyncio
 import random
 import string
 import json
-from typing import Union, Optional, AsyncIterable
+from typing import Optional, AsyncIterator
 
 import aiohttp
 from aiohttp import ClientWebSocketResponse
-from yandex_music import Track
 
-from yamusicrpc.models import CurrentState, TrackInfo
+from yamusicrpc.models import CurrentState
 
 
 class YandexListener:
@@ -107,7 +106,7 @@ class YandexListener:
         self.__ws_proto.setdefault("Ynison-Redirect-Ticket", redirect_ticket)
         self.__redirect_host = host
 
-    # ASYNC BLOCK
+    # Async generator block
     __session: aiohttp.ClientSession
     __ws: ClientWebSocketResponse
 
@@ -131,8 +130,12 @@ class YandexListener:
         if self.__session is not None:
             await self.__session.close()
 
-    async def listen(self) -> AsyncIterable[CurrentState]:
+    # Main methods
+    async def listen(self) -> AsyncIterator[CurrentState]:
         """
+        Asynchronous generator that listens for track state updates from Yandex Music
+        over a WebSocket connection.
+
         Correct using:
         ```
         yandex_listener = YandexListener(...)
@@ -140,12 +143,54 @@ class YandexListener:
             async for current_state in l.listen():
                 ...
         ```
-        :return:
+
+        :return: An async iterator yielding `CurrentState` instances from the Yandex Music service.
         """
         async for msg in self.__ws:
             if msg.type == aiohttp.WSMsgType.TEXT:
                 ynison_data = msg.json()
                 state: CurrentState = CurrentState.from_ynison(ynison_data)
+                print(f'[YandexListener] Received state about track: {state.track_id} (progress: {state.progress})')
+                yield state
+            elif msg.type == aiohttp.WSMsgType.CLOSED:
+                break
+            elif msg.type == aiohttp.WSMsgType.ERROR:
+                raise msg.data
+
+    async def listen_with_event(self, stop_event: asyncio.Event, check_after: int = 5) -> AsyncIterator[CurrentState]:
+        """
+        This method functions similarly to `listen()`, but allows early cancellation
+        by periodically checking the provided `stop_event`. It uses a timeout (`check_after`)
+        when waiting for each incoming message, so that it can detect the stop signal
+        without having to wait for the next WebSocket message.
+
+        This is useful in scenarios where the listening loop should be interruptible
+        without having to wait for the next message from the WebSocket, such as when
+        the application is shutting down or when the user manually stops playback.
+
+        Example usage:
+        ```python
+        stop_event = asyncio.Event()
+        async with YandexListener(...) as listener:
+            async for state in listener.listen_with_event(stop_event, check_after=5):
+                ...
+        ```
+
+        :param stop_event: An `asyncio.Event` that, when set, will interrupt the listening loop.
+        :param check_after: Timeout in seconds to wait for the next message before checking the stop event again. Defaults to 5 seconds.
+        :return: An async iterator yielding `CurrentState` instances from the Yandex Music service.
+        """
+        while not (stop_event and stop_event.is_set()):
+            try:
+                msg = await asyncio.wait_for(self.__ws.receive(), timeout=check_after)
+            except asyncio.TimeoutError:
+                continue
+            except asyncio.CancelledError:
+                break
+
+            if msg.type == aiohttp.WSMsgType.TEXT:
+                ynison_data = msg.json()
+                state = CurrentState.from_ynison(ynison_data)
                 print(f'[YandexListener] Received state about track: {state.track_id} (progress: {state.progress})')
                 yield state
             elif msg.type == aiohttp.WSMsgType.CLOSED:
