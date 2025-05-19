@@ -99,13 +99,19 @@ jobs:
         asset_content_type: application/octet-stream
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  
+    - name: Zip macOS .app bundle
+      if: matrix.os == 'macos-latest'
+      run: |
+        cd artifacts/macos
+        zip -r YaMusicRPC-macos.zip YaMusicRPC.app
 
     - name: Upload macOS executable
       uses: actions/upload-release-asset@v1
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./artifacts/macos/YaMusicRPC.app
-        asset_name: YaMusicRPC.app
+        asset_path: ./artifacts/macos/YaMusicRPC.zip
+        asset_name: YaMusicRPC.zip
         asset_content_type: application/octet-stream
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
