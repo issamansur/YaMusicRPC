@@ -7,7 +7,7 @@ from typing import Optional, AsyncIterator
 import aiohttp
 from aiohttp import ClientWebSocketResponse
 
-from yamusicrpc.models import CurrentState
+from yamusicrpc.models import TrackInfo
 
 
 class YandexListener:
@@ -131,7 +131,7 @@ class YandexListener:
             await self.__session.close()
 
     # Main methods
-    async def listen(self) -> AsyncIterator[CurrentState]:
+    async def listen(self) -> AsyncIterator[TrackInfo]:
         """
         Asynchronous generator that listens for track state updates from Yandex Music
         over a WebSocket connection.
@@ -149,7 +149,7 @@ class YandexListener:
         async for msg in self.__ws:
             if msg.type == aiohttp.WSMsgType.TEXT:
                 ynison_data = msg.json()
-                state: CurrentState = CurrentState.from_ynison(ynison_data)
+                state: TrackInfo = TrackInfo.from_ynison(ynison_data)
                 print(f'[YandexListener] Received state about track: {state.track_id} (progress: {state.progress})')
                 yield state
             elif msg.type == aiohttp.WSMsgType.CLOSED:
@@ -157,7 +157,7 @@ class YandexListener:
             elif msg.type == aiohttp.WSMsgType.ERROR:
                 raise msg.data
 
-    async def listen_with_event(self, stop_event: asyncio.Event, check_after: int = 5) -> AsyncIterator[CurrentState]:
+    async def listen_with_event(self, stop_event: asyncio.Event, check_after: int = 5) -> AsyncIterator[TrackInfo]:
         """
         This method functions similarly to `listen()`, but allows early cancellation
         by periodically checking the provided `stop_event`. It uses a timeout (`check_after`)
@@ -190,7 +190,7 @@ class YandexListener:
 
             if msg.type == aiohttp.WSMsgType.TEXT:
                 ynison_data = msg.json()
-                state = CurrentState.from_ynison(ynison_data)
+                state = TrackInfo.from_ynison(ynison_data)
                 print(f'[YandexListener] Received state about track: {state.track_id} (progress: {state.progress})')
                 yield state
             elif msg.type == aiohttp.WSMsgType.CLOSED:

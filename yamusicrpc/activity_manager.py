@@ -1,10 +1,7 @@
 import time
-from typing import Optional, Union
-
-from yandex_music import ClientAsync, Track
+from typing import Optional
 
 from .data import DISCORD_CLIENT_ID
-from .models import TrackInfo
 from .yandex import YandexTokenReceiver, YandexListener, YandexClient
 from .discord import DiscordIPCClient
 
@@ -33,12 +30,14 @@ class ActivityManager:
         self.__discord_ipc_client.connect()
 
         async with self.__yandex_listener as l:
-            async for current_state in l.listen():
-                start_time: int = int(time.time()) - current_state.progress
-                track: TrackInfo = await self.__client.get_track_info_by_state(current_state)
+            async for track in l.listen():
+                start_time: int = int(time.time()) - track.progress
+                await self.__client.fill_track_info(track)
                 self.__discord_ipc_client.set_yandex_music_activity(
                     title=track.title,
                     artists=track.artists,
                     start=start_time,
                     end=start_time + track.duration,
+                    url=track.get_track_url(),
+                    image_url=track.cover_url
                 )

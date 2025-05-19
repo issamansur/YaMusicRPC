@@ -5,6 +5,9 @@ import socket
 import tempfile
 import time
 import sys
+from typing import Optional
+
+from yamusicrpc.exceptions import DiscordProcessNotFound
 
 
 class DiscordIPCClient:
@@ -51,19 +54,22 @@ class DiscordIPCClient:
                 client.connect(path)
                 return True
 
-    def connect(self):
-        if os.name == 'nt':
-            import win32file
-            self.sock = win32file.CreateFile(
-                self._get_socket_path(),
-                win32file.GENERIC_READ | win32file.GENERIC_WRITE,
-                0, None,
-                win32file.OPEN_EXISTING,
-                0, None
-            )
-        else:
-            self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            self.sock.connect(self._get_socket_path())
+    def connect(self) -> dict:
+        try:
+            if os.name == 'nt':
+                import win32file
+                self.sock = win32file.CreateFile(
+                    self._get_socket_path(),
+                    win32file.GENERIC_READ | win32file.GENERIC_WRITE,
+                    0, None,
+                    win32file.OPEN_EXISTING,
+                    0, None
+                )
+            else:
+                self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                self.sock.connect(self._get_socket_path())
+        except ConnectionRefusedError:
+            raise DiscordProcessNotFound()
 
         handshake = {
             "v": 1,
@@ -83,6 +89,7 @@ class DiscordIPCClient:
         data = json.loads(payload.decode('utf-8'))
 
         print(f"[DiscordIPC] User '{data.get('data').get('user').get('username')}' accepted handshake")
+        return data
 
     def _send(self, opcode, payload):
         packet = self._encode(opcode, payload)
@@ -109,7 +116,9 @@ class DiscordIPCClient:
             title: str,
             artists: str,
             start: int,
-            end: int
+            end: int,
+            url: str,
+            image_url: Optional[str] = None,
     ) -> None:
         self.set_activity({
             "type": 2,
@@ -121,10 +130,16 @@ class DiscordIPCClient:
                 "end": end,
             },
             "assets": {
-                "large_image": "yandex_logo",
-                "small_image": "arasaka_logo",
-                "small_text": "by @edexade"
+                "large_image": image_url if image_url else "yandex_logo",
+                "small_image": "yandex_logo",
+                "small_text": "YaMusicRpc by @edexade"
             },
+            "buttons": [
+                {
+                    "label": "Open music",
+                    "url": url
+                },
+            ]
         })
 
     def close(self):

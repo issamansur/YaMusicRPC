@@ -4,14 +4,14 @@ import aiohttp
 
 from yandex_music import ClientAsync, Track
 
-from ..models import CurrentState, TrackInfo
+from ..models import TrackInfo
 
 
 class YandexClient(ClientAsync):
     def __init__(self, yandex_token):
         super().__init__(yandex_token)
 
-    # Profile utils
+    # Profile utils (without ClientAsync)
     async def get_profile_info(self) -> dict:
         url = "https://login.yandex.ru/info"
         headers = {
@@ -33,7 +33,7 @@ class YandexClient(ClientAsync):
         profile_info: dict = await self.get_profile_info()
         return profile_info.get("display_name", None)
 
-    # Track utils
+    # Track utils (with ClientAsync)
     async def __get_track_by_id(self, track_id: Union[int, str]) -> Track:
         tracks = await self.tracks([track_id])
         track: Track = tracks[0]
@@ -43,13 +43,8 @@ class YandexClient(ClientAsync):
     def __get_track_artists(track: Track) -> str:
         return ', '.join(track.artists_name())
 
-    async def get_track_info_by_state(self, state: CurrentState) -> TrackInfo:
-        track: Track = await self.__get_track_by_id(state.track_id)
+    async def fill_track_info(self, track_info: TrackInfo):
+        track: Track = await self.__get_track_by_id(track_info.track_id)
         artists: str = self.__get_track_artists(track)
 
-        return TrackInfo(
-            title=track.title,
-            artist=artists,
-            duration=state.duration,
-            progress=state.progress,
-        )
+        track_info.artists = artists
