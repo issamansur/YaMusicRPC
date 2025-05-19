@@ -30,12 +30,14 @@ jobs:
 
     - name: Build executable with PyInstaller
       run: |
-        pyinstaller application/YaMusicRPC.py \
-          --onefile \
-          --noconsole \
-          --name "YaMusicRPC" \
-          --icon=application/resources/logo.png \
-          --add-data "application/resources/logo.png:resources"
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          pyinstaller application/YaMusicRPC.py --onefile --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png;resources"
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+          pyinstaller application/YaMusicRPC.py --onedir --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png:resources"
+        else
+          pyinstaller application/YaMusicRPC.py --onefile --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png:resources"
+        fi
+      shell: bash
 
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
