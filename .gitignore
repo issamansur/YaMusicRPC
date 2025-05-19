@@ -9,3 +9,7 @@ __playground/
 
 # system
 .DS_Store
+
+# builds
+build/
+dist/
