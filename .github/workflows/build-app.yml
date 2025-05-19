@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.10"]
+        python-version: ["3.9"]
 
     steps:
     - name: Checkout code
@@ -34,6 +34,7 @@ jobs:
           pyinstaller application/YaMusicRPC.py --onefile --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png;resources"
         elif [ "$RUNNER_OS" == "macOS" ]; then
           pyinstaller application/YaMusicRPC.py --onedir --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png:resources"
+          chmod +x dist/YaMusicRPC.app/Contents/MacOS/YaMusicRPC
         else
           pyinstaller application/YaMusicRPC.py --onefile --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png:resources"
         fi
