@@ -1,0 +1,104 @@
+name: Build and Release YaMusicRPC
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'   # запуск по пушу тегов вида v1.2.3
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: [3.10]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install poetry pyinstaller
+        poetry config virtualenvs.create false
+        poetry install --no-dev
+
+    - name: Build executable with PyInstaller
+      run: |
+        poetry run pyinstaller application/YaMusicRPC.py \
+          --onefile \
+          --noconsole \
+          --name "YaMusicRPC" \
+          --icon=application/resources/logo.png \
+          --add-data "application/resources/logo.png:resources"
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: app-${{ matrix.os }}
+        path: dist/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - name: Download Linux artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: app-ubuntu-latest
+        path: ./artifacts/linux
+
+    - name: Download Windows artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: app-windows-latest
+        path: ./artifacts/windows
+
+    - name: Download macOS artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: app-macos-latest
+        path: ./artifacts/macos
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: Release ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Linux executable
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./artifacts/linux/YaMusicRPC
+        asset_name: YaMusicRPC-linux
+        asset_content_type: application/octet-stream
+
+    - name: Upload Windows executable
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./artifacts/windows/YaMusicRPC.exe
+        asset_name: YaMusicRPC-windows.exe
+        asset_content_type: application/octet-stream
+
+    - name: Upload macOS executable
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./artifacts/macos/YaMusicRPC
+        asset_name: YaMusicRPC-macos
+        asset_content_type: application/octet-stream
