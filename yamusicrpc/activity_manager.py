@@ -26,7 +26,7 @@ class ActivityManager:
     async def start(self):
         token: Optional[str] = self.__yandex_token_receiver.get_token()
         self.__yandex_listener = YandexListener(token)
-        self.__client = await YandexClient(token).init()
+        self.__client = YandexClient(token)
         self.__discord_ipc_client.connect()
 
         async with self.__yandex_listener as l:
