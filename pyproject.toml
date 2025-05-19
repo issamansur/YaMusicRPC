@@ -1,0 +1,31 @@
+[project]
+name = "yamusicrpc"
+version = "1.0.0"
+homepage = "https://github.com/issamansur/YaMusicRPC"
+repository = "https://github.com/issamansur/YaMusicRPC"
+description = "Python library to share Yandex Music activity to Discord"
+keywords = ["yandex", "discord", "rich-presence", "music", "python"]
+authors = [
+    { name = "Issa Mansur (EDEXADE)", email = "issa_mansur@mail.ru" }
+]
+packages = [{ include = "yamusicrpc" }]
+license = "MIT"
+readme = "README.md"
+include = ["LICENSE"]
+classifiers = [
+    "Operating System :: OS Independent"
+]
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+requests = "^2.32.3"
+flask = "^3.1.1"
+aiohttp = "^3.11.18"
+pywin32 = { version = "^306", markers = "sys_platform == 'win32'" }
+
+
+[build-system]
+requires = [
+    "poetry-core"
+]
+build-backend = "poetry.core.masonry.api"
