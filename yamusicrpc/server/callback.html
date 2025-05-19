@@ -4,12 +4,15 @@
     <meta charset="UTF-8">
     <title>Авторизация Яндекс</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f4f4f4;
+            background: linear-gradient(135deg, #e0eafc, #cfdef3);
             color: #333;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
@@ -17,16 +20,26 @@
         }
 
         .container {
-            background: white;
-            padding: 40px;
+            background: #fff;
+            padding: 40px 50px;
             border-radius: 16px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
             text-align: center;
+            max-width: 400px;
+            width: 90%;
+            animation: fadeIn 0.6s ease;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 15px;
         }
 
         h1 {
             color: #2e74d3;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            font-size: 1.8em;
         }
 
         p {
@@ -35,40 +48,49 @@
         }
 
         .loader {
-            margin-top: 20px;
+            margin: 25px auto 0;
             border: 6px solid #f3f3f3;
             border-top: 6px solid #2e74d3;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 48px;
+            height: 48px;
             animation: spin 1s linear infinite;
-            display: inline-block;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg);
-            }
         }
 
         .success {
             font-size: 1.2em;
-            color: green;
+            color: #28a745;
+            margin-top: 20px;
         }
 
         .error {
             font-size: 1.2em;
-            color: red;
+            color: #dc3545;
+            margin-top: 20px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
 <body>
 <div class="container" id="content">
     <h1>Авторизация Яндекс</h1>
-    <p>Получаем токен доступа...</p>
+    <p>Пожалуйста, подождите...</p>
     <div class="loader"></div>
 </div>
 
@@ -80,18 +102,27 @@
     const content = document.getElementById('content');
 
     if (token) {
-        fetch(`/token?access_token=${token}`
-        ).then(() => {
-            content.innerHTML = `
-          <h1>Успех!</h1>
-          <p class="success">Авторизация прошла успешно. Можно закрыть окно.</p>
-        `;
-        });
+        fetch(`/token?access_token=${token}`)
+            .then(() => {
+                content.innerHTML = `
+                    <h1>Успех!</h1>
+                    <p class="success">Авторизация прошла успешно. Окно закроется автоматически.</p>
+                `;
+                setTimeout(() => {
+                    window.close();
+                }, 5000);
+            })
+            .catch(() => {
+                content.innerHTML = `
+                    <h1>Ошибка</h1>
+                    <p class="error">Не удалось отправить токен на сервер.</p>
+                `;
+            });
     } else {
         content.innerHTML = `
-        <h1>Ошибка</h1>
-        <p class="error">Авторизация не удалась. Обратитесь в поддержку</p>
-      `;
+            <h1>Ошибка</h1>
+            <p class="error">Не удалось получить токен. Попробуйте снова или обратитесь в поддержку.</p>
+        `;
     }
 </script>
 </body>
