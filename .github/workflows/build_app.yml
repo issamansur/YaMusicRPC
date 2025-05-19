@@ -85,7 +85,7 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./artifacts/linux/YaMusicRPC
-        asset_name: YaMusicRPC-linux
+        asset_name: YaMusicRPC
         asset_content_type: application/octet-stream
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -95,7 +95,7 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./artifacts/windows/YaMusicRPC.exe
-        asset_name: YaMusicRPC-windows.exe
+        asset_name: YaMusicRPC.exe
         asset_content_type: application/octet-stream
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -104,8 +104,8 @@ jobs:
       uses: actions/upload-release-asset@v1
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./artifacts/macos/YaMusicRPC
-        asset_name: YaMusicRPC-macos
+        asset_path: ./artifacts/macos/YaMusicRPC.app
+        asset_name: YaMusicRPC.app
         asset_content_type: application/octet-stream
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
