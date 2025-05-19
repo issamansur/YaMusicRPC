@@ -101,7 +101,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   
     - name: Zip macOS .app bundle
-      if: matrix.os == 'macos-latest'
       run: |
         cd artifacts/macos
         zip -r YaMusicRPC.zip YaMusicRPC.app
