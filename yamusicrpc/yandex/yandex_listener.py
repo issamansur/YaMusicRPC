@@ -107,7 +107,7 @@ class YandexListener:
             f'[YandexListener] Received host: {host}, redirect_ticket: {redirect_ticket}'
         )
 
-        self.__ws_proto.setdefault("Ynison-Redirect-Ticket", redirect_ticket)
+        self.__ws_proto["Ynison-Redirect-Ticket"] = redirect_ticket
         self.__redirect_host = host
 
     # Async generator block
