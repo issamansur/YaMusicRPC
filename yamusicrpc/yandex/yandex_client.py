@@ -1,3 +1,4 @@
+from ssl import SSLContext
 from typing import Union, Optional, Dict
 
 import aiohttp
@@ -7,10 +8,12 @@ from ..models import TrackInfo
 
 class YandexClient:
     yandex_token: str
+    ssl: Optional[SSLContext]
     default_headers: Dict[str, str]
 
-    def __init__(self, yandex_token):
+    def __init__(self, yandex_token: str, ssl: Optional[SSLContext] = None):
         self.yandex_token = yandex_token
+        self.ssl = ssl
         self.default_headers = {
             "Authorization": f"OAuth {self.yandex_token}"
         }
@@ -19,7 +22,7 @@ class YandexClient:
         headers.update(self.default_headers)
 
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers, params=params) as response:
+            async with session.get(url, headers=headers, params=params, ssl=self.ssl) as response:
                 if response.status == 200:
                     return await response.json()
                 else:

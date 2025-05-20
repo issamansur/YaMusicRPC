@@ -8,3 +8,4 @@ pywin32; platform_system == "Windows"
 pystray
 pillow
 keyring
+certifi

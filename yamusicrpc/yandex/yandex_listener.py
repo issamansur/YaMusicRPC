@@ -2,6 +2,7 @@ import asyncio
 import random
 import string
 import json
+from ssl import SSLContext
 from typing import Optional, AsyncIterator
 
 import aiohttp
@@ -12,13 +13,15 @@ from yamusicrpc.models import TrackInfo
 
 class YandexListener:
     __yandex_token: str
+    __ssl: Optional[SSLContext]
     __device_id: str
     __ws_proto: dict
     __base_payload: dict
     __redirect_host: Optional[str] = None
 
-    def __init__(self, yandex_token: str) -> None:
+    def __init__(self, yandex_token: str, ssl: Optional[SSLContext] = None) -> None:
         self.__yandex_token = yandex_token
+        self.__ssl = ssl
         self.__device_id = self.generate_device_id()
         self.__ws_proto = {
             "Ynison-Device-Id": self.__device_id,
@@ -88,6 +91,7 @@ class YandexListener:
                         "Origin": "https://music.yandex.ru",
                         "Authorization": f"OAuth {self.__yandex_token}",
                     },
+                    ssl=self.__ssl,
             ) as ws:
                 response = await ws.receive()
                 response_json = response.json()
@@ -119,7 +123,8 @@ class YandexListener:
                 "Sec-WebSocket-Protocol": f"Bearer, v2, {json.dumps(self.__ws_proto)}",
                 "Origin": "https://music.yandex.ru",
                 "Authorization": f"OAuth {self.__yandex_token}",
-            }
+            },
+            ssl=self.__ssl,
         )
         await self.__ws.send_str(json.dumps(self.__base_payload))
         return self

@@ -1,5 +1,6 @@
 import sys
 import webbrowser
+from ssl import SSLContext
 from typing import Optional, List
 import asyncio
 import time
@@ -13,7 +14,7 @@ from yamusicrpc.discord import DiscordIPCClient
 
 from application.data import APP_NAME
 from application.state import AppState, StateManager
-from application.utils import AsyncTaskManager, ImageLoader, AutostartManager
+from application.utils import AsyncTaskManager, ImageLoader, AutostartManager, CertManager
 
 
 class YaMusicRPCApp:
@@ -24,9 +25,12 @@ class YaMusicRPCApp:
     yandex_client: Optional[YandexClient] = None
     listener: Optional[YandexListener] = None
     player: AsyncTaskManager
+    ssl: Optional[SSLContext] = None
 
-    def __init__(self):
+    def __init__(self, use_ssl: bool = False):
         self.player = AsyncTaskManager()
+        if use_ssl:
+            self.ssl = CertManager.get_ssl_context()
 
     # === INIT ===
     def start_if_needed(self):
@@ -72,7 +76,7 @@ class YaMusicRPCApp:
         (We are counting that we already have token)
         """
         if self.state.yandex_token:
-            self.yandex_client = YandexClient(self.state.yandex_token)
+            self.yandex_client = YandexClient(self.state.yandex_token, self.ssl)
 
             username: str = await self.yandex_client.get_username()
 
@@ -80,7 +84,7 @@ class YaMusicRPCApp:
                 self.state.yandex_username = username
                 print(f"[YaMusicRPC] Connected to Yandex: @{username}")
 
-                self.listener = YandexListener(self.state.yandex_token)
+                self.listener = YandexListener(self.state.yandex_token, self.ssl)
 
     # === Main func to sharing activity ===
     async def play(self, stop_event: asyncio.Event):
@@ -142,8 +146,6 @@ class YaMusicRPCApp:
         if token:
             print(f"[YaMusicRpc] Yandex token was received: {token}")
             self.state.yandex_token = token
-
-            self.yandex_client = YandexClient(token)
 
             # Save token
             StateManager.save_token(token)
@@ -281,5 +283,5 @@ class YaMusicRPCApp:
 
 # === Run ===
 if __name__ == "__main__":
-    app = YaMusicRPCApp()
+    app = YaMusicRPCApp(use_ssl=True)
     app.run()

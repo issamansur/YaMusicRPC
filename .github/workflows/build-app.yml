@@ -30,12 +30,14 @@ jobs:
 
     - name: Build executable with PyInstaller
       run: |
-        if [ "$RUNNER_OS" == "Windows" ]; then
-          pyinstaller application/YaMusicRPC.py --onefile --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png;resources"
-        elif [ "$RUNNER_OS" == "macOS" ]; then
-          pyinstaller application/YaMusicRPC.py --onedir --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png:resources"
+        CERT_PATH=$(python -c "import certifi; print(certifi.where())")
+    
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          pyinstaller application/YaMusicRPC.py --onefile --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png;resources" --add-data "${CERT_PATH};certifi"
+        elif [ "$RUNNER_OS" = "macOS" ]; then
+          pyinstaller application/YaMusicRPC.py --onedir --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png:resources" --add-data "${CERT_PATH}:certifi"
         else
-          pyinstaller application/YaMusicRPC.py --onefile --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png:resources"
+          pyinstaller application/YaMusicRPC.py --onefile --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png:resources" --add-data "${CERT_PATH}:certifi"
         fi
       shell: bash
 
