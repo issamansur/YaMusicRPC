@@ -44,16 +44,6 @@ class DiscordIPCClient:
                         return entry.path
         return None
 
-    @staticmethod
-    def _test_socket_path(path) -> bool:
-        if sys.platform == 'win32':
-            with open(path):
-                return True
-        else:
-            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-                client.connect(path)
-                return True
-
     def connect(self) -> dict:
         try:
             if os.name == 'nt':
@@ -68,21 +58,25 @@ class DiscordIPCClient:
             else:
                 self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
                 self.sock.connect(self._get_socket_path())
-        except ConnectionRefusedError:
+        except ConnectionRefusedError or FileNotFoundError:
             raise DiscordProcessNotFound()
 
         handshake = {
             "v": 1,
             "client_id": self.client_id
         }
+
         self._send(self.OP_HANDSHAKE, handshake)
         print("[DiscordIPC] Handshake sent")
 
-        if os.name == 'nt':
-            import win32file
-            response = win32file.ReadFile(self.sock, 1024)[1]
-        else:
-            response = self.sock.recv(1024)
+        try:
+            if os.name == 'nt':
+                import win32file
+                response = win32file.ReadFile(self.sock, 1024)[1]
+            else:
+                response = self.sock.recv(1024)
+        except ConnectionRefusedError or FileNotFoundError:
+            raise DiscordProcessNotFound()
 
         opcode, length = struct.unpack('<II', response[:8])
         payload = response[8:8 + length]
@@ -93,11 +87,15 @@ class DiscordIPCClient:
 
     def _send(self, opcode, payload):
         packet = self._encode(opcode, payload)
-        if os.name == 'nt':
-            import win32file
-            win32file.WriteFile(self.sock, packet)
-        else:
-            self.sock.send(packet)
+
+        try:
+            if os.name == 'nt':
+                import win32file
+                win32file.WriteFile(self.sock, packet)
+            else:
+                self.sock.send(packet)
+        except ConnectionRefusedError or FileNotFoundError:
+            raise DiscordProcessNotFound()
 
     def set_activity(self, activity: dict, pid: int = os.getpid()):
         payload = {

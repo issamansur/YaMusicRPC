@@ -29,6 +29,12 @@ class YaMusicRPCApp:
         self.player = AsyncTaskManager()
 
     # === INIT ===
+    def start_if_needed(self):
+        # Start sharing activity (if 'is_autostart' = True)
+        if self.is_ready() and self.state.is_autostart:
+            self.state.is_running = True
+            self.start_player()
+
     async def init_async(self) -> None:
         # Load state
         self.state = StateManager.load_state()
@@ -39,10 +45,7 @@ class YaMusicRPCApp:
         # Check Yandex auth
         await self.check_yandex_async()
 
-        # Start sharing activity (if 'is_autostart' = True)
-        if self.is_ready() and self.state.is_autostart:
-            self.state.is_running = True
-            self.start_player()
+        self.start_if_needed()
 
     # === Connections ===
     def check_discord(self):
@@ -93,14 +96,17 @@ class YaMusicRPCApp:
                 start_time: int = int(time.time()) - track.progress
                 end_time: int = start_time + track.duration
                 await self.yandex_client.fill_track_info(track)
-                self.discord_client.set_yandex_music_activity(
-                    title=track.title,
-                    artists=track.artists,
-                    start=start_time,
-                    end=end_time,
-                    url=track.get_track_url(),
-                    image_url=track.cover_url,
-                )
+                try:
+                    self.discord_client.set_yandex_music_activity(
+                        title=track.title,
+                        artists=track.artists,
+                        start=start_time,
+                        end=end_time,
+                        url=track.get_track_url(),
+                        image_url=track.cover_url,
+                    )
+                except DiscordProcessNotFound:
+                    self.stop_player()
 
         if stop_event.is_set():
             print("[YaMusicRPC] Stop event was received")
@@ -146,9 +152,9 @@ class YaMusicRPCApp:
             # Auth
             asyncio.run(self.check_yandex_async())
 
-            if self.state.yandex_username:
-                print(f"[YaMusicRpc] User was identified: {self.state.yandex_username}")
-                icon.menu = self.generate_menu()
+            icon.menu = self.generate_menu()
+
+            self.start_if_needed()
 
     def _on_logout_yandex(self, icon):
         # Remove data
@@ -167,7 +173,10 @@ class YaMusicRPCApp:
 
     def _on_reconnect_discord(self, icon):
         self.check_discord()
+
         icon.menu = self.generate_menu()
+
+        self.start_if_needed()
 
     def _on_toggle_play(self, icon, item):
         if not self.state.is_running:
@@ -228,7 +237,6 @@ class YaMusicRPCApp:
                 enabled=False
             ),
             Menu.SEPARATOR,
-            yandex_menu,
             MenuItem(
                 f"Discord: {self.state.discord_username}"
                 if self.state.discord_username
@@ -236,6 +244,7 @@ class YaMusicRPCApp:
                 lambda icon, item: self._on_reconnect_discord(icon),
                 enabled=not self.state.discord_username,
             ),
+            yandex_menu,
             Menu.SEPARATOR,
             # Enabled if discord and yandex connected
             MenuItem(
