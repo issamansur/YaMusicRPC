@@ -132,7 +132,7 @@ class YaMusicRPCApp:
             self.state.is_running = False
             self.player.stop()
 
-            self.discord_client.close()
+        self.discord_client.close()
 
     # === Actions (handlers) ===
     def _on_login_yandex(self, icon, item):
