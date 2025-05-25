@@ -129,9 +129,10 @@ class YaMusicRPCApp:
 
     def stop_player(self):
         if self.player.is_running():
-            self.state.is_running = False
             self.player.stop()
 
+        # hard shutdown
+        self.state.is_running = False
         self.discord_client.close()
 
     # === Actions (handlers) ===
