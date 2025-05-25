@@ -29,6 +29,7 @@ class TrackInfo:
         self.track_id = track_id
         self.title = title
         self.artists = artists
+        self.is_paused = is_paused
         self.duration = duration
         self.progress = progress
 
