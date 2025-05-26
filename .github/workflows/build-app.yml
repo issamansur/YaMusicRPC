@@ -1,5 +1,8 @@
 name: Build and Release YaMusicRPC
 
+permissions:
+  contents: write
+
 on:
   push:
     tags:
@@ -10,42 +13,42 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.9"]
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        python-version: [ "3.9" ]
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller
-        pip install -r application/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r application/requirements.txt
 
-    - name: Build executable with PyInstaller
-      run: |
-        CERT_PATH=$(python -c "import certifi; print(certifi.where())")
-    
-        if [ "$RUNNER_OS" = "Windows" ]; then
-          pyinstaller application/YaMusicRPC.py --onefile --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png;resources" --add-data "yamusicrpc/server/callback.html;yamusicrpc/server" --add-data "${CERT_PATH};certifi"
-        elif [ "$RUNNER_OS" = "macOS" ]; then
-          pyinstaller application/YaMusicRPC.py --onedir --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png:resources" --add-data "yamusicrpc/server/callback.html:yamusicrpc/server" --add-data "${CERT_PATH}:certifi"
-        else
-          pyinstaller application/YaMusicRPC.py --onefile --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png:resources" --add-data "yamusicrpc/server/callback.html:yamusicrpc/server" --add-data "${CERT_PATH}:certifi"
-        fi
-      shell: bash
+      - name: Build executable with PyInstaller
+        run: |
+          CERT_PATH=$(python -c "import certifi; print(certifi.where())")
+          
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            pyinstaller application/YaMusicRPC.py --onefile --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png;resources" --add-data "yamusicrpc/server/callback.html;yamusicrpc/server" --add-data "${CERT_PATH};certifi"
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            pyinstaller application/YaMusicRPC.py --onedir --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png:resources" --add-data "yamusicrpc/server/callback.html:yamusicrpc/server" --add-data "${CERT_PATH}:certifi"
+          else
+            pyinstaller application/YaMusicRPC.py --onefile --noconsole --name "YaMusicRPC" --icon=application/resources/logo.png --add-data "application/resources/logo.png:resources" --add-data "yamusicrpc/server/callback.html:yamusicrpc/server" --add-data "${CERT_PATH}:certifi"
+          fi
+        shell: bash
 
-    - name: Upload build artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-${{ matrix.os }}
-        path: dist/*
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.os }}
+          path: dist/*
 
   release:
     needs: build
@@ -53,66 +56,66 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-    - name: Download Linux artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: app-ubuntu-latest
-        path: ./artifacts/linux
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-ubuntu-latest
+          path: ./artifacts/linux
 
-    - name: Download Windows artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: app-windows-latest
-        path: ./artifacts/windows
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-windows-latest
+          path: ./artifacts/windows
 
-    - name: Download macOS artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: app-macos-latest
-        path: ./artifacts/macos
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-macos-latest
+          path: ./artifacts/macos
 
-    - name: Create GitHub Release
-      id: create_release
-      uses: actions/create-release@v1
-      with:
-        tag_name: ${{ github.ref_name }}
-        release_name: Release ${{ github.ref_name }}
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Upload Linux executable
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./artifacts/linux/YaMusicRPC
-        asset_name: YaMusicRPC
-        asset_content_type: application/octet-stream
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Linux executable
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/linux/YaMusicRPC
+          asset_name: YaMusicRPC
+          asset_content_type: application/octet-stream
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Upload Windows executable
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./artifacts/windows/YaMusicRPC.exe
-        asset_name: YaMusicRPC.exe
-        asset_content_type: application/octet-stream
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  
-    - name: Zip macOS .app bundle
-      run: |
-        cd artifacts/macos
-        zip -r YaMusicRPC.zip YaMusicRPC.app
+      - name: Upload Windows executable
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/windows/YaMusicRPC.exe
+          asset_name: YaMusicRPC.exe
+          asset_content_type: application/octet-stream
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Upload macOS executable
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./artifacts/macos/YaMusicRPC.zip
-        asset_name: YaMusicRPC.zip
-        asset_content_type: application/octet-stream
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Zip macOS .app bundle
+        run: |
+          cd artifacts/macos
+          zip -r YaMusicRPC.zip YaMusicRPC.app
+
+      - name: Upload macOS executable
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/macos/YaMusicRPC.zip
+          asset_name: YaMusicRPC.zip
+          asset_content_type: application/octet-stream
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
