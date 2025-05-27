@@ -14,7 +14,7 @@ class ImageLoader:
             # PyInstaller create own folder, so we get it path
             base_path = sys._MEIPASS
         except AttributeError:
-            base_path = os.path.abspath(".")
+            base_path = os.path.join(os.path.dirname(__file__), '..')
 
         return os.path.join(base_path, relative_path)
 
@@ -26,11 +26,11 @@ class ImageLoader:
         return image
 
     @staticmethod
-    def load_icon(is_after_build: bool = False) -> Image:
-        if is_after_build:
-            icon_path = ImageLoader.resource_path("resources/logo.png")
-        else:
-            icon_path = os.path.join(os.path.dirname(__file__), "..", "resources", "logo.png")
+    def load_icon() -> Image:
+        relative_path: str = os.path.join("resources", "logo.png")
+
+        icon_path = ImageLoader.resource_path(relative_path)
+
         try:
             return Image.open(icon_path).convert("RGBA")
         except Exception as e:

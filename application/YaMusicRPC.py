@@ -272,7 +272,7 @@ class YaMusicRPCApp:
         return Menu(*items)
 
     def run(self):
-        icon_image = ImageLoader.load_icon(is_after_build=True)
+        icon_image = ImageLoader.load_icon()
 
         asyncio.run(self.init_async())
 
