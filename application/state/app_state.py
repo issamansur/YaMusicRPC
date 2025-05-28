@@ -1,5 +1,7 @@
 from typing import Optional
 
+from yamusicrpc.models import TrackInfo
+
 
 class AppState:
     # keyring / secret
@@ -13,3 +15,4 @@ class AppState:
     is_running: bool = False
     yandex_username: Optional[str] = None
     discord_username: Optional[str] = None
+    current_track_info: Optional[TrackInfo] = None

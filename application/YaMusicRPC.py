@@ -10,6 +10,7 @@ from pystray import Icon, Menu, MenuItem
 
 from yamusicrpc.data import DISCORD_CLIENT_ID
 from yamusicrpc.exceptions import DiscordProcessNotFound
+from yamusicrpc.models import TrackInfo
 from yamusicrpc.yandex import YandexTokenReceiver, YandexClient, YandexListener
 from yamusicrpc.discord import DiscordIPCClient
 
@@ -55,16 +56,27 @@ class YaMusicRPCApp:
         # Load state
         self.state = StateManager.load_state()
 
+        # While loading
+        self.icon.menu = Menu(
+            MenuItem(
+                text="Инициализация...",
+                action=None,
+                enabled=False,
+            )
+        )
+
         # Check Discord auth
-        await self.check_discord()
+        await self.check_discord_async()
 
         # Check Yandex auth
         await self.check_yandex_async()
 
         self.start_if_needed()
 
+        self.update_menu()
+
     # === Connections ===
-    async def check_discord(self):
+    async def check_discord_async(self):
         """
         Try connecting to discord and update state (discord_username)
         """
@@ -109,6 +121,8 @@ class YaMusicRPCApp:
                 start_time: int = int(time.time()) - track.progress
                 end_time: int = start_time + track.duration
                 await self.yandex_client.fill_track_info(track)
+                self.state.current_track_info = track
+                self.update_menu()
                 try:
                     self.discord_client.set_yandex_music_activity(
                         title=track.title,
@@ -197,11 +211,11 @@ class YaMusicRPCApp:
         asyncio.run_coroutine_threadsafe(self._on_reconnect_discord_async(), self.loop)
 
     async def _on_reconnect_discord_async(self):
-        await self.check_discord()
-
-        self.update_menu()
+        await self.check_discord_async()
 
         self.start_if_needed()
+
+        self.update_menu()
 
     def _on_toggle_play(self, icon, item):
         if not self.state.is_running:
@@ -261,22 +275,57 @@ class YaMusicRPCApp:
                     action=self._on_login_yandex,
                 )
 
+        # Current track menu item
+        track: Optional[TrackInfo] = self.state.current_track_info
+        if self.state.current_track_info:
+            track_info: str = f'{track.title} - {track.artists}'
+            if len(track_info) > 25:
+                track_info = track_info[:25] + ".."
+            current_track_menu = MenuItem(
+                text=track_info,
+                action=lambda _: webbrowser.open(track.get_track_url()),
+                enabled=True
+            )
+        else:
+            current_track_menu = MenuItem(
+                text="Сначала включите трансляцию",
+                action=None,
+                enabled=False
+            )
+
         items: List[MenuItem] = [
             MenuItem(
                 text="YaMusicRPC (by @edexade)",
+                action=lambda _: webbrowser.open("https://github.com/issamansur/YaMusicRPC"),
+                enabled=True
+            ),
+            Menu.SEPARATOR,
+            MenuItem(
+                text="======Сейчас играет======",
                 action=None,
                 enabled=False
             ),
+            current_track_menu,
             Menu.SEPARATOR,
+            MenuItem(
+                text="======Подключения=======",
+                action=None,
+                enabled=False
+            ),
             yandex_menu,
             MenuItem(
-                f"Discord: {self.state.discord_username}"
+                text=f"Discord: {self.state.discord_username}"
                 if self.state.discord_username
                 else "Discord: Процесс не найден",
                 action=self._on_reconnect_discord,
                 enabled=not self.state.discord_username,
             ),
             Menu.SEPARATOR,
+            MenuItem(
+                text="======Настройки=========",
+                action=None,
+                enabled=False
+            ),
             # Enabled if discord and yandex connected
             MenuItem(
                 text="Транслировать в Discord",
