@@ -314,7 +314,7 @@ class YaMusicRPCApp:
 
         items: List[MenuItem] = [
             MenuItem(
-                text="YaMusicRPC (by @edexade)",
+                text="YaMusicRPC 1.1.0 (by @edexade)",
                 action=lambda _: webbrowser.open("https://github.com/issamansur/YaMusicRPC"),
                 enabled=True
             ),
@@ -356,7 +356,7 @@ class YaMusicRPCApp:
                 text="Запускать при включении",
                 action=self._on_toggle_autostart,
                 checked=lambda item: self.state.is_autostart,
-                enabled=self.is_ready(),
+                enabled=True
             ),
             Menu.SEPARATOR,
             MenuItem(

@@ -1,6 +1,6 @@
 [project]
 name = "yamusicrpc"
-version = "1.0.0"
+version = "1.1.1"
 homepage = "https://github.com/issamansur/YaMusicRPC"
 repository = "https://github.com/issamansur/YaMusicRPC"
 description = "Python library to share Yandex Music activity to Discord"

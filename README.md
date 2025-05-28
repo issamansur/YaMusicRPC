@@ -1,12 +1,15 @@
 ![Лицензия](https://img.shields.io/badge/Лицензия-MIT-blue)
 ![Совместимость с Python](https://img.shields.io/badge/Python-3.8--3.13-blue)
-![Версия библиотеки](https://img.shields.io/badge/pip-1.0.0-blue)
+![Версия библиотеки](https://img.shields.io/badge/pip-1.1.1-blue)
 [![PyPi downloads](https://img.shields.io/pypi/dm/yamusicrpc.svg)](https://pypi.org/project/yamusicrpc/)
 [![Build and Release YaMusicRPC App](https://github.com/issamansur/YaMusicRPC/actions/workflows/build-app.yml/badge.svg)](https://github.com/issamansur/YaMusicRPC/actions/workflows/build-app.yml)
 
-# <p align="center"> YaMusicRPC </p>
+# <p align="center"> YaMusicRPC (+App) </p>
 
 **YaMusicRPC** — это Python-библиотека для интеграции статуса прослушивания Яндекс.Музыки в Discord Rich Presence.
+
+Помимо этого на основе библиотеки разработано кроссплатформенное приложение **YaMusicRPC**,
+которое позволит стримить в Discord прослушиваемую музыку в Яндекс Музыке.
 
 ## Возможности
 
@@ -46,14 +49,9 @@ asyncio.run(main())
 
 ## Требования
 
-- Python 3.8+
+- Python 3.9+
 - Discord Desktop Client (должен быть запущен)
 - Аккаунт Яндекс.Музыки
-
-## Скрипты
-
-- `utils/install_requirements.sh` — установка зависимостей
-- `utils/starter.sh` — запуск примера
 
 ## Лицензия
 
@@ -65,7 +63,13 @@ asyncio.run(main())
 
 ## Благодарности
 
+### Помощь в разработке
+
 - [Группа по Яндекс](https://t.me/yandex_music_api) - за поддержку и быстрые ответы
 - [Артём Б.](https://artembay.ru) — за помощь со способом редиректа через Yandex API;
 - [Мипоха](https://mipoh.ru) — за помощь со способом получения текущего трека;
 - [Артём М.](https://github.com/TheKing-OfTime) - за помощь со способом отображения обложки трека и кнопок в активности;
+
+### Помощь в тестировании
+
+- [Александр П.]()
