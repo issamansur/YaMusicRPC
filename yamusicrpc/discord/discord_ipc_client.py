@@ -5,6 +5,7 @@ import socket
 import tempfile
 import time
 import sys
+
 from typing import Optional
 
 from yamusicrpc.exceptions import DiscordProcessNotFound
@@ -45,9 +46,11 @@ class DiscordIPCClient:
         return None
 
     def connect(self) -> dict:
-        try:
-            if os.name == 'nt':
-                import win32file
+        if os.name == 'nt':
+            import win32file
+            import pywintypes
+
+            try:
                 self.sock = win32file.CreateFile(
                     self._get_socket_path(),
                     win32file.GENERIC_READ | win32file.GENERIC_WRITE,
@@ -55,11 +58,18 @@ class DiscordIPCClient:
                     win32file.OPEN_EXISTING,
                     0, None
                 )
-            else:
+            except pywintypes.error as e:
+                if e.winerror == 2:  # File not found
+                    raise DiscordProcessNotFound from e
+                else:
+                    print(f"[DiscordIPC] Error sending packet: {e}")
+                    raise DiscordProcessNotFound from e
+        else:
+            try:
                 self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
                 self.sock.connect(self._get_socket_path())
-        except ConnectionRefusedError or FileNotFoundError:
-            raise DiscordProcessNotFound()
+            except (ConnectionRefusedError, FileNotFoundError, BrokenPipeError) as e:
+                raise DiscordProcessNotFound from e
 
         handshake = {
             "v": 1,
@@ -69,14 +79,23 @@ class DiscordIPCClient:
         self._send(self.OP_HANDSHAKE, handshake)
         print("[DiscordIPC] Handshake sent")
 
-        try:
-            if os.name == 'nt':
-                import win32file
+        if os.name == 'nt':
+            import win32file
+            import pywintypes
+
+            try:
                 response = win32file.ReadFile(self.sock, 1024)[1]
-            else:
+            except pywintypes.error as e:
+                if e.winerror == 2:  # File not found
+                    raise DiscordProcessNotFound from e
+                else:
+                    print(f"[DiscordIPC] Error sending packet: {e}")
+                    raise DiscordProcessNotFound from e
+        else:
+            try:
                 response = self.sock.recv(1024)
-        except ConnectionRefusedError or FileNotFoundError:
-            raise DiscordProcessNotFound()
+            except (ConnectionRefusedError, FileNotFoundError, BrokenPipeError) as e:
+                raise DiscordProcessNotFound from e
 
         opcode, length = struct.unpack('<II', response[:8])
         payload = response[8:8 + length]
@@ -88,14 +107,25 @@ class DiscordIPCClient:
     def _send(self, opcode, payload):
         packet = self._encode(opcode, payload)
 
-        try:
-            if os.name == 'nt':
-                import win32file
+        if os.name == 'nt':
+            import win32file
+            import pywintypes
+
+            try:
                 win32file.WriteFile(self.sock, packet)
-            else:
+            except pywintypes.error as e:
+                if e.winerror == 2:  # File not found
+                    raise DiscordProcessNotFound from e
+                elif e.winerror == 232:  # Pipe closed
+                    raise DiscordProcessNotFound from e
+                else:
+                    print(f"[DiscordIPC] Error sending packet: {e}")
+                    raise DiscordProcessNotFound from e
+        else:
+            try:
                 self.sock.send(packet)
-        except ConnectionRefusedError or FileNotFoundError:
-            raise DiscordProcessNotFound()
+            except (ConnectionRefusedError, FileNotFoundError, BrokenPipeError) as e:
+                raise DiscordProcessNotFound from e
 
     def set_activity(self, activity: dict, pid: int = os.getpid()):
         payload = {
