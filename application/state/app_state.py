@@ -6,7 +6,7 @@ class AppState:
     yandex_token: Optional[str] = None
 
     # json
-    is_autostart: bool = True
+    is_autostart: bool = False
 
     # local
     is_yandex_authorization: bool = False
