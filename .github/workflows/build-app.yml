@@ -1,4 +1,4 @@
-name: Build and Release YaMusicRPC
+name: Build and Release YaMusicRPC App
 
 permissions:
   contents: write
