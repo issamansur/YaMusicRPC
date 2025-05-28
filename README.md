@@ -1,4 +1,8 @@
 ![Лицензия](https://img.shields.io/badge/Лицензия-MIT-blue)
+![Совместимость с Python](https://img.shields.io/badge/Python-3.8--3.13-blue)
+![Версия библиотеки](https://img.shields.io/badge/pip-1.0.0-blue)
+[![PyPi downloads](https://img.shields.io/pypi/dm/yamusicrpc.svg)](https://pypi.org/project/yamusicrpc/)
+[![Build and Release YaMusicRPC App](https://github.com/issamansur/YaMusicRPC/actions/workflows/build-app.yml/badge.svg)](https://github.com/issamansur/YaMusicRPC/actions/workflows/build-app.yml)
 
 # <p align="center"> YaMusicRPC </p>
 
