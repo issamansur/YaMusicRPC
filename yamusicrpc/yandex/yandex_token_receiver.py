@@ -32,18 +32,21 @@ class YandexTokenReceiver:
     def get_redirect_uri(self) -> str:
         return f'{self.get_local_uri()}callback'
 
-    def get_token(self, timeout: int = 60) -> Optional[str]:
-        self.__server_thread.start()
-
-        print(f"[YandexTokenReceiver] Сервер запущен на {self.get_local_uri()}")
-
-        webbrowser.open(
+    def get_ouath_url(self) -> str:
+        return (
             f'https://oauth.yandex.ru/authorize?'
             f'response_type=token'
             f'&scope=music%3Acontent&scope=music%3Aread&scope=music%3Awrite'
             f'&client_id={self.yandex_client_id}'
             f'&redirect_uri={self.get_redirect_uri()}'
         )
+
+    def get_token(self, timeout: int = 60) -> Optional[str]:
+        self.__server_thread.start()
+
+        print(f"[YandexTokenReceiver] Сервер запущен на {self.get_local_uri()}")
+
+        webbrowser.open(self.get_ouath_url())
         print("[YandexTokenReceiver] Открыт браузер для авторизации...")
 
         self.__oauth_server.token_received_event.wait(timeout=timeout)
