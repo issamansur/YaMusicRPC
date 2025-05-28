@@ -1,4 +1,5 @@
 import sys
+import threading
 import webbrowser
 from ssl import SSLContext
 from typing import Optional, List
@@ -23,14 +24,25 @@ class YaMusicRPCApp:
     state: AppState = AppState()
     discord_client: Optional[DiscordIPCClient] = None
     yandex_client: Optional[YandexClient] = None
+    receiver: Optional[YandexTokenReceiver] = None
     listener: Optional[YandexListener] = None
     player: AsyncTaskManager
     ssl: Optional[SSLContext] = None
 
     def __init__(self, use_ssl: bool = False):
+        self.discord_client = DiscordIPCClient(DISCORD_CLIENT_ID)
         self.player = AsyncTaskManager()
         if use_ssl:
             self.ssl = CertManager.get_ssl_context()
+
+        # create loop for long tasks
+        self.loop = asyncio.new_event_loop()
+        threading.Thread(target=self._run_loop, daemon=True).start()
+
+    # LOOP FOR PARALLEL WORK WITHOUT FREEZING INTERFACE
+    def _run_loop(self):
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_forever()
 
     # === INIT ===
     def start_if_needed(self):
@@ -44,7 +56,7 @@ class YaMusicRPCApp:
         self.state = StateManager.load_state()
 
         # Check Discord auth
-        self.check_discord()
+        await self.check_discord()
 
         # Check Yandex auth
         await self.check_yandex_async()
@@ -52,13 +64,12 @@ class YaMusicRPCApp:
         self.start_if_needed()
 
     # === Connections ===
-    def check_discord(self):
+    async def check_discord(self):
         """
         Try connecting to discord and update state (discord_username)
         """
         try:
-            self.discord_client = DiscordIPCClient(DISCORD_CLIENT_ID)
-            info: dict = self.discord_client.connect()
+            info: dict = await asyncio.to_thread(self.discord_client.connect)
             username = info.get("data", {}).get("user", {}).get("username")
             if username:
                 self.state.discord_username = username
@@ -68,6 +79,7 @@ class YaMusicRPCApp:
             self.discord_client.close()
 
         except DiscordProcessNotFound:
+            print(f"[YaMusicRPC] Discord process not found")
             self.state.discord_username = None
 
     async def check_yandex_async(self):
@@ -90,13 +102,10 @@ class YaMusicRPCApp:
     async def play(self, stop_event: asyncio.Event):
         async with self.listener as l:
             # Using overload to not wait next message
-            """
-            async for current_state in l.listen():
-                if stop_event.is_set():
-                    print("[YaMusicRPC] Stop event was received")
-                    break
-            """
             async for track in l.listen_with_event(stop_event, check_after=5):
+                if stop_event.is_set():
+                    break
+
                 start_time: int = int(time.time()) - track.progress
                 end_time: int = start_time + track.duration
                 await self.yandex_client.fill_track_info(track)
@@ -111,9 +120,7 @@ class YaMusicRPCApp:
                     )
                 except DiscordProcessNotFound:
                     self.stop_player()
-
-        if stop_event.is_set():
-            print("[YaMusicRPC] Stop event was received")
+                    break
 
     def is_ready(self) -> bool:
         return bool(self.state.yandex_username) and bool(self.state.discord_username)
@@ -133,16 +140,28 @@ class YaMusicRPCApp:
 
         # hard shutdown
         self.state.is_running = False
+        self.state.discord_username = None
         self.discord_client.close()
 
-    # === Actions (handlers) ===
-    def _on_login_yandex(self, icon, item):
+    # === Button actions (handlers) ===
+    def _on_login_yandex(self):
+        asyncio.run_coroutine_threadsafe(self._on_login_yandex_async(), self.loop)
+
+    async def _on_login_yandex_async(self):
         """
         Try to log in yandex to get token
         """
-        # Getting yandex token
-        ytr: YandexTokenReceiver = YandexTokenReceiver(local_port=5051)
-        token: Optional[str] = ytr.get_token()
+        # Pre-action
+        self.receiver = YandexTokenReceiver(local_port=5051)
+        self.state.is_yandex_authorization = True
+        self.update_menu()
+
+        # Getting token
+        token: Optional[str] = await asyncio.to_thread(self.receiver.get_token)
+
+        # Post-action
+        self.receiver = None
+        self.state.is_yandex_authorization = False
 
         if token:
             print(f"[YaMusicRpc] Yandex token was received: {token}")
@@ -153,19 +172,19 @@ class YaMusicRPCApp:
             print("[YaMusicRpc] Yandex token was saved")
 
             # Auth
-            asyncio.run(self.check_yandex_async())
+            await self.check_yandex_async()
 
-            icon.menu = self.generate_menu()
+        self.update_menu()
 
-            self.start_if_needed()
+        self.start_if_needed()
 
-    def _on_logout_yandex(self, icon):
+    def _on_logout_yandex(self):
         # Remove data
         StateManager.remove_token()
         self.state.yandex_username = None
         self.state.yandex_token = None
 
-        icon.menu = self.generate_menu()
+        self.update_menu()
 
         # Open link to remove access to app (not necessary, but yes)
         webbrowser.open("https://id.yandex.ru/personal/data-access")
@@ -174,10 +193,13 @@ class YaMusicRPCApp:
         self.stop_player()
         self.listener = None
 
-    def _on_reconnect_discord(self, icon):
-        self.check_discord()
+    def  _on_reconnect_discord(self):
+        asyncio.run_coroutine_threadsafe(self._on_reconnect_discord_async(), self.loop)
 
-        icon.menu = self.generate_menu()
+    async def _on_reconnect_discord_async(self):
+        await self.check_discord()
+
+        self.update_menu()
 
         self.start_if_needed()
 
@@ -213,7 +235,7 @@ class YaMusicRPCApp:
         sys.exit(0)
 
     # === Menu ===
-    def generate_menu(self):
+    def update_menu(self):
         # Yandex menu item
         if self.state.yandex_username:
             items: List[MenuItem] = [
@@ -228,10 +250,16 @@ class YaMusicRPCApp:
                 action=Menu(*items),
             )
         else:
-            yandex_menu = MenuItem(
-                text="Yandex: Войти в аккаунт",
-                action=self._on_login_yandex,
-            )
+            if self.state.is_yandex_authorization and self.receiver:
+                yandex_menu = MenuItem(
+                    text="Yandex: Выполняется вход...",
+                    action=lambda _: webbrowser.open(self.receiver.get_ouath_url())
+                )
+            else:
+                yandex_menu = MenuItem(
+                    text="Yandex: Войти в аккаунт",
+                    action=self._on_login_yandex,
+                )
 
         items: List[MenuItem] = [
             MenuItem(
@@ -240,14 +268,14 @@ class YaMusicRPCApp:
                 enabled=False
             ),
             Menu.SEPARATOR,
+            yandex_menu,
             MenuItem(
                 f"Discord: {self.state.discord_username}"
                 if self.state.discord_username
                 else "Discord: Процесс не найден",
-                lambda icon, item: self._on_reconnect_discord(icon),
+                action=self._on_reconnect_discord,
                 enabled=not self.state.discord_username,
             ),
-            yandex_menu,
             Menu.SEPARATOR,
             # Enabled if discord and yandex connected
             MenuItem(
@@ -269,7 +297,7 @@ class YaMusicRPCApp:
             )
         ]
 
-        return Menu(*items)
+        self.icon.menu = Menu(*items)
 
     def run(self):
         icon_image = ImageLoader.load_icon()
@@ -278,7 +306,7 @@ class YaMusicRPCApp:
 
         self.icon = Icon(APP_NAME, icon=icon_image, title=APP_NAME)
 
-        self.icon.menu = self.generate_menu()
+        self.update_menu()
         self.icon.run()
 
 

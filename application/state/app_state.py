@@ -9,6 +9,7 @@ class AppState:
     is_autostart: bool = True
 
     # local
+    is_yandex_authorization: bool = False
     is_running: bool = False
     yandex_username: Optional[str] = None
     discord_username: Optional[str] = None
