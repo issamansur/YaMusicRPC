@@ -162,12 +162,16 @@ class DiscordIPCClient:
             "assets": {
                 "large_image": image_url if image_url else "yandex_logo",
                 "small_image": "yandex_logo",
-                "small_text": "YaMusicRpc by @edexade"
+                "small_text": "YaMusicRPC by @edexade"
             },
             "buttons": [
                 {
                     "label": "Open music",
                     "url": url
+                },
+                {
+                    "label": "Download YaMusicRPC",
+                    "url": "https://github.com/issamansur/YaMusicRPC"
                 },
             ]
         })
