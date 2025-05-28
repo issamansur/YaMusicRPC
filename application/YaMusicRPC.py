@@ -9,7 +9,7 @@ import time
 from pystray import Icon, Menu, MenuItem
 
 from yamusicrpc.data import DISCORD_CLIENT_ID
-from yamusicrpc.exceptions import DiscordProcessNotFound
+from yamusicrpc.exceptions import DiscordProcessNotFoundError, AdminRightsRequiredError
 from yamusicrpc.models import TrackInfo
 from yamusicrpc.yandex import YandexTokenReceiver, YandexClient, YandexListener
 from yamusicrpc.discord import DiscordIPCClient
@@ -66,7 +66,26 @@ class YaMusicRPCApp:
         )
 
         # Check Discord auth
-        await self.check_discord_async()
+        try:
+            await self.check_discord_async()
+        except AdminRightsRequiredError:
+            self.icon.menu = Menu(
+                MenuItem(
+                    text="Ошибка подключения к Discord RPC через сокет",
+                    action=None,
+                    enabled=False,
+                ),
+                MenuItem(
+                    text="Запустите YaMusicRPC с правами администратора",
+                    action=None,
+                    enabled=False,
+                ),
+                MenuItem(
+                    text="Выход",
+                    action=self._on_exit
+                )
+            )
+            return
 
         # Check Yandex auth
         await self.check_yandex_async()
@@ -90,7 +109,7 @@ class YaMusicRPCApp:
             # CLose socket (we don't need to keep it active)
             self.discord_client.close()
 
-        except DiscordProcessNotFound:
+        except DiscordProcessNotFoundError:
             print(f"[YaMusicRPC] Discord process not found")
             self.state.discord_username = None
 
@@ -132,7 +151,7 @@ class YaMusicRPCApp:
                         url=track.get_track_url(),
                         image_url=track.cover_url,
                     )
-                except DiscordProcessNotFound:
+                except DiscordProcessNotFoundError:
                     self.stop_player()
                     break
 
@@ -207,7 +226,7 @@ class YaMusicRPCApp:
         self.stop_player()
         self.listener = None
 
-    def  _on_reconnect_discord(self):
+    def _on_reconnect_discord(self):
         asyncio.run_coroutine_threadsafe(self._on_reconnect_discord_async(), self.loop)
 
     async def _on_reconnect_discord_async(self):
