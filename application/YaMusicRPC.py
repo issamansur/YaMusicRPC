@@ -302,11 +302,11 @@ class YaMusicRPCApp:
     def run(self):
         icon_image = ImageLoader.load_icon()
 
-        asyncio.run(self.init_async())
-
         self.icon = Icon(APP_NAME, icon=icon_image, title=APP_NAME)
 
-        self.update_menu()
+        # Run in parallel to show icon on time
+        asyncio.run_coroutine_threadsafe(self.init_async(), loop=self.loop)
+
         self.icon.run()
 
 
