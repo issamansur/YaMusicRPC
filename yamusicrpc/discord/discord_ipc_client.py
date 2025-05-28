@@ -61,6 +61,8 @@ class DiscordIPCClient:
             except pywintypes.error as e:
                 if e.winerror == 2:  # File not found
                     raise DiscordProcessNotFoundError from e
+                if e.winerror == 5: # Not rights for rpc
+                    raise AdminRightsRequiredError from e
                 else:
                     print(f"[DiscordIPC] Error sending packet: {e}")
                     raise DiscordProcessNotFoundError from e
