@@ -1,5 +1,5 @@
 ![Лицензия](https://img.shields.io/badge/Лицензия-MIT-blue)
-![Совместимость с Python](https://img.shields.io/badge/Python-3.8--3.13-blue)
+![Совместимость с Python](https://img.shields.io/badge/Python-3.9--3.13-blue)
 ![Версия библиотеки](https://img.shields.io/badge/pip-1.1.1-blue)
 [![PyPi downloads](https://img.shields.io/pypi/dm/yamusicrpc.svg)](https://pypi.org/project/yamusicrpc/)
 [![Build and Release YaMusicRPC App](https://github.com/issamansur/YaMusicRPC/actions/workflows/build-app.yml/badge.svg)](https://github.com/issamansur/YaMusicRPC/actions/workflows/build-app.yml)
@@ -70,6 +70,10 @@ asyncio.run(main())
 - [Мипоха](https://mipoh.ru) — за помощь со способом получения текущего трека;
 - [Артём М.](https://github.com/TheKing-OfTime) - за помощь со способом отображения обложки трека и кнопок в активности;
 
-### Помощь в тестировании
+### Помощь в тестировании либы
 
-- [Александр П.]()
+- [Кибернуб](https://github.com/Cybernoobi) (ошибка зависимости pywin32 для python3.13)
+
+### Помощь в тестировании приложения
+
+- [Александр П.]() (3+ бага в релизе)
