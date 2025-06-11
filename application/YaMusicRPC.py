@@ -142,6 +142,7 @@ class YaMusicRPCApp:
                 await self.yandex_client.fill_track_info(track)
                 self.state.current_track_info = track
                 self.update_menu()
+
                 try:
                     self.discord_client.set_yandex_music_activity(
                         title=track.title,
@@ -167,6 +168,8 @@ class YaMusicRPCApp:
 
             self.player.start(self.play)
 
+            self.update_menu()
+
     def stop_player(self):
         if self.player.is_running():
             self.player.stop()
@@ -175,6 +178,8 @@ class YaMusicRPCApp:
         self.state.is_running = False
         self.state.discord_username = None
         self.discord_client.close()
+
+        self.update_menu()
 
     # === Button actions (handlers) ===
     def _on_login_yandex(self):
