@@ -1,55 +1,104 @@
+import time
 import webbrowser
 from typing import Optional
 
-from yamusicrpc.data import LOCAL_HOST, LOCAL_PORT, YANDEX_CLIENT_ID
-from yamusicrpc.server import OAuthServer, ServerThread
+import requests
+
+from yamusicrpc.data import LOCAL_HOST, LOCAL_PORT, YANDEX_CLIENT_ID, YANDEX_CLIENT_SECRET
+from yamusicrpc.server import DeviceAuthServer, ServerThread
+
+_OAUTH_BASE_URL = 'https://oauth.yandex.ru'
+
+# Delay (seconds) to let the browser receive the final status before server shuts down
+_SHUTDOWN_DELAY = 4
 
 
 class YandexTokenReceiver:
-    yandex_client_id: str
     local_host: str
     local_port: int
 
-    __oauth_server: OAuthServer
-    __server_thread: ServerThread
-
     def __init__(
             self,
-            yandex_client_id: str = YANDEX_CLIENT_ID,
             local_host: str = LOCAL_HOST,
-            local_port: int = LOCAL_PORT
+            local_port: int = LOCAL_PORT,
+            client_id: str = YANDEX_CLIENT_ID,
+            client_secret: str = YANDEX_CLIENT_SECRET,
     ) -> None:
         self.local_host = local_host
         self.local_port = local_port
-        self.yandex_client_id = yandex_client_id
+        self._client_id = client_id
+        self._client_secret = client_secret
 
-        self.__oauth_server = OAuthServer(local_host, local_port)
-        self.__server_thread = ServerThread(self.__oauth_server.get_app(), local_host, local_port)
-
-    def get_local_uri(self) -> str:
+    def get_local_url(self) -> str:
         return f'http://{self.local_host}:{self.local_port}/'
 
-    def get_redirect_uri(self) -> str:
-        return f'{self.get_local_uri()}callback'
-
-    def get_ouath_url(self) -> str:
-        return (
-            f'https://oauth.yandex.ru/authorize?'
-            f'response_type=token'
-            f'&scope=music%3Acontent&scope=music%3Aread&scope=music%3Awrite'
-            f'&client_id={self.yandex_client_id}'
-            f'&redirect_uri={self.get_redirect_uri()}'
+    def _request_device_code(self) -> dict:
+        resp = requests.post(
+            f'{_OAUTH_BASE_URL}/device/code',
+            data={
+                'client_id': self._client_id,
+                'device_name': 'YaMusicRPC',
+            },
         )
+        resp.raise_for_status()
+        return resp.json()
 
-    def get_token(self, timeout: int = 60) -> Optional[str]:
-        self.__server_thread.start()
+    def _poll_yandex_token(self, device_code: str) -> Optional[str]:
+        resp = requests.post(
+            f'{_OAUTH_BASE_URL}/token',
+            data={
+                'grant_type': 'device_code',
+                'code': device_code,
+                'client_id': self._client_id,
+                'client_secret': self._client_secret,
+            },
+        )
+        data = resp.json()
+        if resp.status_code != 200:
+            if data.get('error') == 'authorization_pending':
+                return None
+            raise Exception(data.get('error_description', data.get('error', 'Unknown auth error')))
+        return data.get('access_token')
 
-        print(f"[YandexTokenReceiver] Сервер запущен на {self.get_local_uri()}")
+    def get_token(self, timeout: int = 300) -> Optional[str]:
+        code_data = self._request_device_code()
+        user_code: str = code_data['user_code']
+        verification_url: str = code_data['verification_url']
+        device_code: str = code_data['device_code']
+        interval: int = code_data.get('interval', 5)
+        expires_in: int = code_data.get('expires_in', timeout)
 
-        webbrowser.open(self.get_ouath_url())
-        print("[YandexTokenReceiver] Открыт браузер для авторизации...")
+        print(f'[YandexTokenReceiver] Device code: {user_code}')
 
-        self.__oauth_server.token_received_event.wait(timeout=timeout)
-        self.__server_thread.shutdown()
-        print("[YandexTokenReceiver] Сервер остановлен")
-        return self.__oauth_server.access_token
+        server = DeviceAuthServer(self.local_host, self.local_port)
+        server.set_device_code(user_code, verification_url)
+        server_thread = ServerThread(server.get_app(), self.local_host, self.local_port)
+        server_thread.start()
+
+        print(f'[YandexTokenReceiver] Server started at {self.get_local_url()}')
+        webbrowser.open(self.get_local_url())
+
+        token: Optional[str] = None
+        deadline = time.monotonic() + min(timeout, expires_in)
+
+        try:
+            while True:
+                time.sleep(interval)
+
+                if time.monotonic() >= deadline:
+                    server.set_expired()
+                    print('[YandexTokenReceiver] Auth timeout')
+                    time.sleep(_SHUTDOWN_DELAY)
+                    break
+
+                token = self._poll_yandex_token(device_code)
+                if token is not None:
+                    server.set_success()
+                    print('[YandexTokenReceiver] Token received')
+                    time.sleep(_SHUTDOWN_DELAY)
+                    break
+        finally:
+            server_thread.shutdown()
+            print('[YandexTokenReceiver] Server stopped')
+
+        return token

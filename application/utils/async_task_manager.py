@@ -20,6 +20,7 @@ class AsyncTaskManager:
             async def wrapped():
                 try:
                     await coro_func(self.stop_event)
+                    print("[TaskManager] Stop event was received")
                 except asyncio.CancelledError:
                     print("[TaskManager] Task was cancelled")
 

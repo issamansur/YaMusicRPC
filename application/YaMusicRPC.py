@@ -8,6 +8,7 @@ import time
 
 from pystray import Icon, Menu, MenuItem
 
+from yamusicrpc import __version__
 from yamusicrpc.data import DISCORD_CLIENT_ID
 from yamusicrpc.exceptions import DiscordProcessNotFoundError, AdminRightsRequiredError
 from yamusicrpc.models import TrackInfo
@@ -30,6 +31,16 @@ class YaMusicRPCApp:
     player: AsyncTaskManager
     ssl: Optional[SSLContext] = None
 
+    # State
+    is_discord_connected: bool = False
+    discord_username: Optional[str] = None
+
+    is_yandex_connected: bool = False
+    is_yandex_authorization: bool = False
+    yandex_username: Optional[str] = None
+    current_track_info: Optional[TrackInfo] = None
+    is_running: bool = False
+
     def __init__(self, use_ssl: bool = False):
         self.discord_client = DiscordIPCClient(DISCORD_CLIENT_ID)
         self.player = AsyncTaskManager()
@@ -49,7 +60,7 @@ class YaMusicRPCApp:
     def start_if_needed(self):
         # Start sharing activity (if 'is_autostart' = True)
         if self.is_ready() and self.state.is_autostart:
-            self.state.is_running = True
+            self.is_running = True
             self.start_player()
 
     async def init_async(self) -> None:
@@ -101,9 +112,10 @@ class YaMusicRPCApp:
         """
         try:
             info: dict = await asyncio.to_thread(self.discord_client.connect)
-            username = info.get("data", {}).get("user", {}).get("username")
+            username = info.get("data", {}).get("user", {}).get("username", None)
             if username:
-                self.state.discord_username = username
+                self.is_discord_connected = True
+                self.discord_username = username
                 print(f"[YaMusicRPC] Connected to Discord: @{username}")
 
             # CLose socket (we don't need to keep it active)
@@ -111,7 +123,7 @@ class YaMusicRPCApp:
 
         except DiscordProcessNotFoundError:
             print(f"[YaMusicRPC] Discord process not found")
-            self.state.discord_username = None
+            self.is_discord_connected = False
 
     async def check_yandex_async(self):
         """
@@ -124,7 +136,8 @@ class YaMusicRPCApp:
             username: str = await self.yandex_client.get_username()
 
             if username:
-                self.state.yandex_username = username
+                self.is_yandex_connected = True
+                self.yandex_username = username
                 print(f"[YaMusicRPC] Connected to Yandex: @{username}")
 
                 self.listener = YandexListener(self.state.yandex_token, self.ssl)
@@ -140,7 +153,7 @@ class YaMusicRPCApp:
                 start_time: int = int(time.time()) - track.progress
                 end_time: int = start_time + track.duration
                 await self.yandex_client.fill_track_info(track)
-                self.state.current_track_info = track
+                self.current_track_info = track
                 self.update_menu()
 
                 try:
@@ -157,28 +170,22 @@ class YaMusicRPCApp:
                     break
 
     def is_ready(self) -> bool:
-        return bool(self.state.yandex_username) and bool(self.state.discord_username)
+        return bool(self.is_discord_connected) and bool(self.is_yandex_connected)
 
     # === Player ===
     def start_player(self):
         if not self.player.is_running():
-            self.state.is_running = True
-            # Prepare
             self.discord_client.connect()
-
             self.player.start(self.play)
-
+            self.is_running = True
             self.update_menu()
 
     def stop_player(self):
         if self.player.is_running():
             self.player.stop()
 
-        # hard shutdown
-        self.state.is_running = False
-        self.state.discord_username = None
+        self.is_running = False
         self.discord_client.close()
-
         self.update_menu()
 
     # === Button actions (handlers) ===
@@ -191,7 +198,7 @@ class YaMusicRPCApp:
         """
         # Pre-action
         self.receiver = YandexTokenReceiver(local_port=5051)
-        self.state.is_yandex_authorization = True
+        self.is_yandex_authorization = True
         self.update_menu()
 
         # Getting token
@@ -199,7 +206,7 @@ class YaMusicRPCApp:
 
         # Post-action
         self.receiver = None
-        self.state.is_yandex_authorization = False
+        self.is_yandex_authorization = False
 
         if token:
             print(f"[YaMusicRpc] Yandex token was received: {token}")
@@ -219,13 +226,8 @@ class YaMusicRPCApp:
     def _on_logout_yandex(self):
         # Remove data
         StateManager.remove_token()
-        self.state.yandex_username = None
-        self.state.yandex_token = None
-
-        self.update_menu()
-
-        # Open link to remove access to app (not necessary, but yes)
-        webbrowser.open("https://id.yandex.ru/personal/data-access")
+        self.is_discord_connected = False
+        self.is_yandex_connected = False
 
         # Disconnect
         self.stop_player()
@@ -242,7 +244,7 @@ class YaMusicRPCApp:
         self.update_menu()
 
     def _on_toggle_play(self, icon, item):
-        if not self.state.is_running:
+        if not self.player.is_running():
             self.start_player()
             print("[YaMusicRpc] Start sharing activity")
         else:
@@ -275,7 +277,7 @@ class YaMusicRPCApp:
     # === Menu ===
     def update_menu(self):
         # Yandex menu item
-        if self.state.yandex_username:
+        if self.is_yandex_connected:
             items: List[MenuItem] = [
                 MenuItem(
                     text="Выйти из аккаунта",
@@ -284,14 +286,14 @@ class YaMusicRPCApp:
             ]
 
             yandex_menu = MenuItem(
-                text=f"Yandex: {self.state.yandex_username}",
+                text=f"Yandex: {self.yandex_username}",
                 action=Menu(*items),
             )
         else:
-            if self.state.is_yandex_authorization and self.receiver:
+            if self.is_yandex_authorization and self.receiver:
                 yandex_menu = MenuItem(
                     text="Yandex: Выполняется вход...",
-                    action=lambda _: webbrowser.open(self.receiver.get_ouath_url())
+                    action=lambda _: webbrowser.open(self.receiver.get_local_url())
                 )
             else:
                 yandex_menu = MenuItem(
@@ -300,8 +302,8 @@ class YaMusicRPCApp:
                 )
 
         # Current track menu item
-        track: Optional[TrackInfo] = self.state.current_track_info
-        if self.state.current_track_info:
+        track: Optional[TrackInfo] = self.current_track_info
+        if self.current_track_info:
             track_info: str = f'{track.title} - {track.artists}'
             if len(track_info) > 25:
                 track_info = track_info[:25] + ".."
@@ -319,7 +321,7 @@ class YaMusicRPCApp:
 
         items: List[MenuItem] = [
             MenuItem(
-                text="YaMusicRPC 1.1.0 (by @edexade)",
+                text=f"YaMusicRPC {__version__} (by @edexade)",
                 action=lambda _: webbrowser.open("https://github.com/issamansur/YaMusicRPC"),
                 enabled=True
             ),
@@ -338,11 +340,11 @@ class YaMusicRPCApp:
             ),
             yandex_menu,
             MenuItem(
-                text=f"Discord: {self.state.discord_username}"
-                if self.state.discord_username
+                text=f"Discord: {self.discord_username}"
+                if self.is_discord_connected
                 else "Discord: Процесс не найден",
                 action=self._on_reconnect_discord,
-                enabled=not self.state.discord_username,
+                enabled=not self.is_discord_connected,
             ),
             Menu.SEPARATOR,
             MenuItem(
@@ -354,7 +356,7 @@ class YaMusicRPCApp:
             MenuItem(
                 text="Транслировать в Discord",
                 action=self._on_toggle_play,
-                checked=lambda item: self.state.is_running,
+                checked=lambda item: self.is_running,
                 enabled=self.is_ready()
             ),
             MenuItem(
